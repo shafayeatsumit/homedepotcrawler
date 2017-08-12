@@ -2,7 +2,7 @@ import requests
 import json
 from jobid import find_job_ids 
 import re
-from datetime import datetime
+from datetime import datetime,timedelta
 import csv
 import codecs
 
@@ -77,7 +77,10 @@ def get_job_detail(jobs, cookies=cookies, headers=headers, data=data, url=domain
             result["job_type"] = job_detail[10]['AnswerValue']
             result["province"] = province_initial(job_detail[11]['AnswerValue'])
             result["address"] = job_detail[8]['AnswerValue']
-            result["last_apply_date"] = string_to_datetime(job_detail[12]['AnswerValue'])
+            try:
+                result["last_apply_date"] = string_to_datetime(job_detail[12]['AnswerValue'])
+            except Exception as e:
+                result["last_apply_date"] = datetime.now() + timedelta(days=30)
             result["department_name"] = job_detail[6]['AnswerValue']
             result["last_updated"] = string_to_datetime(job_detail[5]['AnswerValue'])
             print ("++++",result["province"],job)

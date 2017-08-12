@@ -51,8 +51,7 @@ number_of_pages = math.ceil(number_of_jobs / 50 )
 
 def find_job_ids(cookies=cookies, headers=headers, data=data, pages=number_of_pages, url=domain_url):
 	id_list = []
-	for page in range(1,5):
-		print(page)
+	for page in range(1,pages):
 		data_with_page_number =data%page
 		response = requests.post(domain_url, headers=headers, cookies=cookies, data=data_with_page_number)
 		resonse_content = json.loads(response.content.decode('utf8'))
