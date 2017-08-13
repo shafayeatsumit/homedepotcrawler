@@ -75,12 +75,9 @@ def get_job_detail(jobs, cookies=cookies, headers=headers, data=data, url=domain
             result["job_description"] = job_detail[7]['AnswerValue']
             result["title"] = cleanhtml(job_detail[9]['AnswerValue'])
             result["job_type"] = job_detail[10]['AnswerValue']
-            result["province"] = province_initial(job_detail[11]['AnswerValue'])
+            result["province"] = province_initial(job_detail[11]['AnswerValue']) if (len(job_detail)>12) else "N/A"
             result["address"] = job_detail[8]['AnswerValue']
-            try:
-                result["last_apply_date"] = string_to_datetime(job_detail[12]['AnswerValue'])
-            except Exception as e:
-                result["last_apply_date"] = datetime.now() + timedelta(days=30)
+            result["last_apply_date"] = string_to_datetime(job_detail[12]['AnswerValue']) if (len(job_detail)>12) else datetime.now() + timedelta(days=30)
             result["department_name"] = job_detail[6]['AnswerValue']
             result["last_updated"] = string_to_datetime(job_detail[5]['AnswerValue'])
             print ("++++",result["province"],job)
