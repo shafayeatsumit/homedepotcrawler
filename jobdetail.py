@@ -10,7 +10,6 @@ from db_insert import insert_jobs
 import psycopg2
 import re
 import time 
-from fake_useragent import UserAgent
 from db_update import update_jobs
 
 
@@ -68,8 +67,12 @@ def cleanhtml(raw_html):
   cleantext = re.sub(cleanr, '', raw_html)
   return cleantext
 
-def string_to_datetime(date):
-    return datetime.strptime(date, '%m/%d/%Y')
+def string_to_datetime(date): 
+    try:
+        result = datetime.strptime(date, '%m/%d/%Y')
+    except Exception as e:
+        result = datetime.now() + timedelta(days=60)
+    return result
 
 def get_lat_lon(address):
     g = geocoders.GoogleV3(api_key='AIzaSyCZsl42Ue3KaTlNjrhk3WJG1475pugV42g')
@@ -83,49 +86,61 @@ def get_lat_lon(address):
         else:
             postal_code = None    
         return lat,lon,postal_code
+
     else:
         return None, None, None  
-    
-def get_job_detail(jobs, cookies=cookies, headers=headers, data=data, url=domain_url ):
+def parser(resonse_content, job):
     root_url = 'https://sjobs.brassring.com/TGnewUI/Search/Home/Home?partnerid=25121&siteid=5051#jobDetails='
     conn = psycopg2.connect("dbname='jobdb' user='jobmin' password='f1d3r!@#' host='www.jobminister.ca'")
+    result = {}
+    try:
+        job_detail = resonse_content['JobDetailQuestions']
+        result["job_description"] = job_detail[7]['AnswerValue']
+        result["job_title"] = cleanhtml(job_detail[9]['AnswerValue'])
+        result["job_type"] = job_detail[10]['AnswerValue']
+        result["province"] = province_initial(job_detail[11]['AnswerValue']) if (len(job_detail)>12) else "N/A"
+        result["raw_address"] = job_detail[8]['AnswerValue']
+        result["address"] = re.sub(r'\d+[- ]?',"",job_detail[8]['AnswerValue'])
+        result["last_apply_date"] = string_to_datetime(job_detail[12]['AnswerValue']) if (len(job_detail)>12) else datetime.now() + timedelta(days=30)
+        result["department_name"] = job_detail[6]['AnswerValue']
+        result["last_updated"] = string_to_datetime(job_detail[5]['AnswerValue'])
+        lat , lon, postal_code = get_lat_lon(result["raw_address"])
+        result["lat"] = lat
+        result["lon"] = lon
+        result["postal_code"] = postal_code
+        result["web_link"] = root_url + job
+        print("raw address", result["raw_address"])
+
+        #update_jobs(result,conn)
+        insert_jobs(result,conn)            
+    except Exception as e:
+        print("exception",e) 
+           
+def get_job_detail(jobs, cookies=cookies, headers=headers, data=data, url=domain_url ):
+
     for job in jobs:
         print("job Id",job)
-        result = {}
+        
         data_with_job_id = data%str(job)
         try:
             response = requests.post(url, headers=headers, cookies=cookies, data=data_with_job_id, timeout=15)
             resonse_content = json.loads(response.content.decode('utf8'))
-            content_value = job_detail = resonse_content["ServiceResponse"]["Jobdetails"]
+            content_value = resonse_content["ServiceResponse"]["Jobdetails"]
         except Exception as e:
             print("exception timeout ",e)
-            content_value = None
             
-            
-        
-        if content_value != None:
+        if content_value == None :
             try:
-                job_detail = resonse_content["ServiceResponse"]["Jobdetails"]['JobDetailQuestions']
-                result["job_description"] = job_detail[7]['AnswerValue']
-                result["job_title"] = cleanhtml(job_detail[9]['AnswerValue'])
-                result["job_type"] = job_detail[10]['AnswerValue']
-                result["province"] = province_initial(job_detail[11]['AnswerValue']) if (len(job_detail)>12) else "N/A"
-                result["raw_address"] = job_detail[8]['AnswerValue']
-                result["address"] = re.sub(r'\d+[- ]?',"",job_detail[8]['AnswerValue'])
-                result["last_apply_date"] = string_to_datetime(job_detail[12]['AnswerValue']) if (len(job_detail)>12) else datetime.now() + timedelta(days=30)
-                result["department_name"] = job_detail[6]['AnswerValue']
-                result["last_updated"] = string_to_datetime(job_detail[5]['AnswerValue'])
-                lat , lon, postal_code = get_lat_lon(result["raw_address"])
-                result["lat"] = lat
-                result["lon"] = lon
-                result["postal_code"] = postal_code
-                result["web_link"] = root_url + job
-                print("raw address", result["raw_address"])
-                update_jobs(result,conn)
-                #insert_jobs(result,conn)            
+                response = requests.post(url, headers=headers, cookies=cookies, data = '{"partnerId":"25121","siteId":"5051","jobid":"%s","configMode":"","jobSiteId":"5060"}'%job, timeout=15)
+                resonse_content = json.loads(response.content.decode('utf8'))
+                content_value = resonse_content["ServiceResponse"]["Jobdetails"]
             except Exception as e:
-                print("exception",e)
-
+                print ("connection time out exception",e)
+        
+        if content_value :
+            parser(content_value, job)
+        else: 
+            print("Null")
 
 job_id_list = find_job_ids()
 

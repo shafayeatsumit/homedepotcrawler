@@ -63,7 +63,11 @@ def cleanhtml(raw_html):
   return cleantext
 
 def string_to_datetime(date): 
-    return datetime.strptime(date, '%m/%d/%Y')
+    try:
+        result = datetime.strptime(date, '%m/%d/%Y')
+    except Exception as e:
+        result = datetime.now()
+    return result
 
 def get_lat_lon(city, province):
     g = geocoders.GoogleV3(api_key='AIzaSyCZsl42Ue3KaTlNjrhk3WJG1475pugV42g')
@@ -79,11 +83,23 @@ def get_lat_lon(city, province):
 def get_job_detail(job_id, cookies=cookies, headers=headers, data=data, url=domain_url ):
     result = {}
     data_with_job_id = data%str(job_id)
-    response = requests.post(url, headers=headers, cookies=cookies, data=data_with_job_id)
-    resonse_content = json.loads(response.content.decode('utf8'))
-    content_value = job_detail = resonse_content["ServiceResponse"]["Jobdetails"]
-    print("content ==>",content_value)
-    if content_value != None:
+    try:
+        response = requests.post(url, headers=headers, cookies=cookies, data=data_with_job_id, timeout=15)
+        resonse_content = json.loads(response.content.decode('utf8'))
+        content_value = resonse_content["ServiceResponse"]["Jobdetails"]
+    
+    except Exception as e:
+        print("exception ",e)
+
+    if content_value == None :
+        try:
+            response = requests.post(url, headers=headers, cookies=cookies, data = '{"partnerId":"25121","siteId":"5051","jobid":"%s","configMode":"","jobSiteId":"5060"}'%job_id, timeout=15)
+            resonse_content = json.loads(response.content.decode('utf8'))
+            content_value = resonse_content["ServiceResponse"]["Jobdetails"]
+        except Exception as e:
+            print ("connection time out exception",e)
+
+    if content_value:
         job_detail = resonse_content["ServiceResponse"]["Jobdetails"]['JobDetailQuestions']
         result["job_description"] = job_detail[7]['AnswerValue']
         result["title"] = cleanhtml(job_detail[9]['AnswerValue'])
@@ -93,11 +109,11 @@ def get_job_detail(job_id, cookies=cookies, headers=headers, data=data, url=doma
         result["last_apply_date"] = string_to_datetime(job_detail[12]['AnswerValue']) if (len(job_detail)>12) else datetime.now() + timedelta(days=30)
         result["department_name"] = job_detail[6]['AnswerValue']
         result["last_updated"] = string_to_datetime(job_detail[5]['AnswerValue'])
-        print (result["province"])
-        print (result["job_description"])
+        print (result)
+        #print (result["job_description"])
         
 
-get_job_detail("1196403")
+get_job_detail("1187650")
 
 
 
