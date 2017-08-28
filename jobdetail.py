@@ -98,10 +98,10 @@ def parser(resonse_content, job):
         result["job_description"] = job_detail[7]['AnswerValue']
         result["job_title"] = cleanhtml(job_detail[9]['AnswerValue'])
         result["job_type"] = job_detail[10]['AnswerValue']
-        result["province"] = province_initial(job_detail[11]['AnswerValue']) if (len(job_detail)>12) else "N/A"
+        result["province"] = province_initial(job_detail[11]['AnswerValue']) if (len(job_detail)>=12) else "N/A"
         result["raw_address"] = job_detail[8]['AnswerValue']
         result["address"] = re.sub(r'\d+[- ]?',"",job_detail[8]['AnswerValue'])
-        result["last_apply_date"] = string_to_datetime(job_detail[12]['AnswerValue']) if (len(job_detail)>12) else datetime.now() + timedelta(days=30)
+        result["last_apply_date"] = string_to_datetime(job_detail[12]['AnswerValue']) if (len(job_detail)>=13) else datetime.now() + timedelta(days=30)
         result["department_name"] = job_detail[6]['AnswerValue']
         result["last_updated"] = string_to_datetime(job_detail[5]['AnswerValue'])
         lat , lon, postal_code = get_lat_lon(result["raw_address"])
